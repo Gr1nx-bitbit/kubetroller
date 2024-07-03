@@ -13,7 +13,7 @@ import (
 	pointer "k8s.io/utils/pointer"
 )
 
-func main() {
+func client() {
 	kubeconfig := flag.String("kubeconfig", "../../config/config", "kubeconfig file")
 	flag.Parse()
 
