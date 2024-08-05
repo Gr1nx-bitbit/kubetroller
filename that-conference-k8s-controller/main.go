@@ -88,7 +88,22 @@ func (c *controller) processNextItem() bool {
 	return true
 }
 
+// so now we have to acutally get info out of our CR
 func (c *controller) processItem(key string) error {
+	item, exists, err := c.informer.GetIndexer().GetByKey(key)
+	if err != nil {
+		return err
+	}
+
+	// if the item is in the queue but doesn't actually have any content, we'll get rid of it
+	if !exists {
+		klog.InfoS("item deleted", "key", key)
+	}
+
+	// the method returns an empty interface{} so we have to type cast it to our CR
+	podCustomizer := item.(*picturesv1.PodCustomizer)
+
+	// TODO: Check if the customizer has work that needs to be done and react accordingly
 }
 
 func main() {
