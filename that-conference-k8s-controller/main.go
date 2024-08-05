@@ -71,7 +71,21 @@ func (c *controller) processNextItem() bool {
 
 	go func(key string) {
 		defer c.queue.Done(key)
+
+		err := c.processItem(key)
+		if err == nil {
+			klog.InfoS("work finished", "key", key)
+		} else if c.queue.NumRequeues(key) > 3 {
+			defer c.queue.Forget(key) // since we're no longer retrying this item, we'll just forget about it
+			klog.InfoS("retry limit reached", "key", key)
+			utilruntime.HandleError(err) // this will just log the error instead of killing the program
+		} else {
+			klog.InfoS("retrying", "key", key)
+			c.queue.AddRateLimited(key)
+		}
 	}(key.(string))
+
+	return true
 }
 
 func (c *controller) processItem(key string) error {
