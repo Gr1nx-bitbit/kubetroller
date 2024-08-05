@@ -35,13 +35,43 @@ type controller struct {
 	// deepai *deepai.Client
 }
 
+// This method starts up the controllers processes like the informer.
 func (c *controller) Run(stopCh <-chan struct{}) {
+	defer utilruntime.HandleCrash()
+
+	// since this method gets blocked by the channel we're starting
+	// it in a seperate thread so the rest of the execution isn't halted
+	go c.informer.Run(stopCh)
+
+	// wait for the cache to sync (i'm presuming that it's getting info from the apiServer)
+	if !cache.WaitForCacheSync(stopCh, c.informer.HasSynced) {
+		panic("can't sync cache and inforer")
+	}
+
+	// start workers in a seperate goroutine (i don't know what these are)
+	go c.runWorker()
+
+	// wait for the channel
+	<-stopCh
 }
 
+// this is a forever loop which processes items found in the controllers work queue
 func (c *controller) runWorker() {
+	klog.Info("starting worker")
+	for c.processNextItem() {
+		// loop forever
+	}
 }
 
 func (c *controller) processNextItem() bool {
+	key, shutdown := c.queue.Get()
+	if shutdown {
+		return false
+	}
+
+	go func(key string) {
+		defer c.queue.Done(key)
+	}(key.(string))
 }
 
 func (c *controller) processItem(key string) error {
