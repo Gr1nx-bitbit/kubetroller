@@ -1,0 +1,138 @@
+package main
+
+import (
+	// "context"
+	// "fmt"
+	"time"
+
+	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+
+	// "k8s.io/apimachinery/pkg/util/wait"
+	// "k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
+
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+
+	picturesv1 "github.com/eddiezane/that-conference-k8s-controller/pkg/apis/pictures/v1"
+	clientset "github.com/eddiezane/that-conference-k8s-controller/pkg/generated/clientset/versioned"
+	informers "github.com/eddiezane/that-conference-k8s-controller/pkg/generated/informers/externalversions"
+
+	craiyon "github.com/eddiezane/that-conference-k8s-controller/pkg/craiyon"
+	// deepai "github.com/eddiezane/that-conference-k8s-controller/pkg/text2image"
+)
+
+type controller struct {
+	queue    workqueue.RateLimitingInterface
+	informer cache.SharedIndexInformer
+	client   clientset.Interface
+
+	craiyon *craiyon.Client
+	// deepai *deepai.Client
+}
+
+func (c *controller) Run(stopCh <-chan struct{}) {
+}
+
+func (c *controller) runWorker() {
+}
+
+func (c *controller) processNextItem() bool {
+}
+
+func (c *controller) processItem(key string) error {
+}
+
+func main() {
+	klog.InitFlags(nil)
+
+	configFlags := genericclioptions.NewConfigFlags(true) // this will generate a client for the controller and figure out the best method to do so i.e. in cluster, --kubeconfig, client-go
+
+	config, err := configFlags.ToRESTConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	client := clientset.NewForConfigOrDie(config)                                     // this is just the clientset from the code-gen
+	factory := informers.NewSharedInformerFactory(client, 30*time.Second)             // the informers will resync every 30 seconds
+	informer := factory.Kuberneddies().V1().PodCustomizers().Informer()               // make the actual informer
+	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()) // make a queue for the controller to use
+
+	controller := NewController(queue, informer, client)
+
+	// add callback functions for when these resources get added, updated, and deleted
+	controller.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(obj) // this will return us the object which we can access
+			if err != nil {
+				panic(err)
+			}
+
+			klog.InfoS("adding to queue", "key", key)
+			controller.queue.Add(key)
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			// type cast the interfaces returned as PodCustomizers or whatever CRD you're using
+			old := oldObj.(*picturesv1.PodCustomizer)
+			new := newObj.(*picturesv1.PodCustomizer)
+
+			key, err := cache.MetaNamespaceKeyFunc(new)
+			if err != nil {
+				panic(err)
+			}
+
+			// now we can actually check if work needs to be done by comparing each resource versions of each object
+			if old.ResourceVersion == new.ResourceVersion {
+				klog.InfoS("preiodic resync", "key", key)
+				return
+			}
+
+			klog.InfoS("queueing PodCustomizer for update", "key", key)
+			queue.Add(key)
+		},
+		DeleteFunc: func(obj interface{}) {
+			key, err := cache.MetaNamespaceKeyFunc(obj)
+			if err != nil {
+				panic(err)
+			}
+
+			klog.InfoS("delete callback invoked. just letting you know", "key", key)
+			// UP UNTIL THIS POINT, THIS IS ALL BOILERPLATE!! WE'RE GOING TO GET TO THE BUSINESS LOGIC SOON ENOUGH
+		},
+	})
+
+	// uhh, this context is here in case we need to kill the controller via "control C" something similar
+	ctx := signals.SetupSignalHandler()
+
+	klog.Info("Starting controller")
+	controller.Run(ctx.Done())
+	klog.Info("Stopping controller")
+}
+
+func NewController(
+	queue workqueue.RateLimitingInterface,
+	informer cache.SharedIndexInformer,
+	client clientset.Interface,
+) *controller {
+	return &controller{
+		queue:    queue,
+		informer: informer,
+		client:   client,
+		craiyon:  craiyon.NewClient(),
+		// deepai:   deepai.NewClient(),
+	}
+}
+
+func (c *controller) enqueue(obj interface{}) {
+	key, err := cache.MetaNamespaceKeyFunc(obj)
+	if err != nil {
+		utilruntime.HandleError(err)
+		return
+	}
+	klog.InfoS("adding to queue", "key", key)
+	c.queue.Add(key)
+}
