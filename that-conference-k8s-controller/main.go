@@ -54,6 +54,9 @@ func (c *controller) Run(stopCh <-chan struct{}) {
 	}
 
 	// start workers in a seperate goroutine (i don't know what these are)
+	// ok, so this starts the actual business logic in another goroutine and
+	// I mean that is literally all it does. It just keeps checking to see
+	// of processNextItem returns a false and that's how the controller keeps running!
 	go c.runWorker()
 
 	// wait for the channel
@@ -79,7 +82,7 @@ func (c *controller) processNextItem() bool {
 
 		err := c.processItem(key)
 		if err == nil {
-			klog.InfoS("work finished", "key", key)
+			klog.InfoS("item processed", "key", key)
 		} else if c.queue.NumRequeues(key) > 3 {
 			defer c.queue.Forget(key) // since we're no longer retrying this item, we'll just forget about it
 			klog.InfoS("retry limit reached", "key", key)
@@ -110,7 +113,7 @@ func (c *controller) processItem(key string) error {
 	podCustomizer := item.(*picturesv1.PodCustomizer)
 
 	// TODO: Check if the customizer has work that needs to be done and react accordingly
-	if !podCustomizer.Spec.Promote { // i.e. if there is work to do
+	if !podCustomizer.Spec.Promote {
 		err := c.client.CoreV1().Pods("default").Delete(context.TODO(), "test", metav1.DeleteOptions{})
 		if err != nil {
 			panic(err)

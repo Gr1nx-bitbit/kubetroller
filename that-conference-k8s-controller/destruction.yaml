@@ -1,6 +1,6 @@
 apiVersion: kuberneddies.dev/v1
 kind: PodCustomizer
 metadata:
-  name: "girl"
+  name: "destroy"
 spec:
-  promote: true
+  promote: false
