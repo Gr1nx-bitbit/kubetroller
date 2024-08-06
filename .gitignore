@@ -2,6 +2,3 @@ config/
 concurrency/
 custom-controller/
 makefile.txt
-sample-controller/
-backupGitEddie/
-# that-conference-k8s-controller/

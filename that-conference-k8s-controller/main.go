@@ -153,9 +153,7 @@ func createDeployment(name string, ns string, replicas int, podSpec apiv1.PodTem
 		Spec: v1.DeploymentSpec{
 			Replicas: reps,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "test",
-				},
+				MatchLabels: podSpec.Labels,
 			},
 			Template: podSpec,
 		},
