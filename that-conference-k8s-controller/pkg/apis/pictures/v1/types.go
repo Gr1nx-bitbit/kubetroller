@@ -20,8 +20,9 @@ type PodCustomizerSpec struct {
 }
 
 type PodCustomizerStatus struct {
-	NumPromoted  int64 `json:"numPromoted"`
-	NumDestroyed int64 `json:"numDestroyed,omitempty"`
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	NumPromoted        int64 `json:"numPromoted,omitempty"`
+	NumDestroyed       int64 `json:"numDestroyed,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
