@@ -264,7 +264,7 @@ func (c *controller) enqueue(obj interface{}) {
 }
 
 func newClient() *kubernetes.Clientset {
-	kubeconfig := flag.String("kubeconfig", "../../config/config", "kubeconfig file")
+	kubeconfig := flag.String("kubeconfig", "../config/config", "kubeconfig file")
 	flag.Parse()
 
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
