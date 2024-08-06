@@ -1,25 +1,28 @@
 package main
 
 import (
-	// "context"
+	"context"
 	// "fmt"
+	"flag"
 	"time"
 
-	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
 	// "k8s.io/apimachinery/pkg/util/wait"
 	// "k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
 	picturesv1 "github.com/eddiezane/that-conference-k8s-controller/pkg/apis/pictures/v1"
-	clientset "github.com/eddiezane/that-conference-k8s-controller/pkg/generated/clientset/versioned"
+	customclientset "github.com/eddiezane/that-conference-k8s-controller/pkg/generated/clientset/versioned"
 	informers "github.com/eddiezane/that-conference-k8s-controller/pkg/generated/informers/externalversions"
 
 	craiyon "github.com/eddiezane/that-conference-k8s-controller/pkg/craiyon"
@@ -27,9 +30,10 @@ import (
 )
 
 type controller struct {
-	queue    workqueue.RateLimitingInterface
-	informer cache.SharedIndexInformer
-	client   clientset.Interface
+	queue        workqueue.RateLimitingInterface
+	informer     cache.SharedIndexInformer
+	customClient customclientset.Interface
+	client       *kubernetes.Clientset
 
 	craiyon *craiyon.Client
 	// deepai *deepai.Client
@@ -98,12 +102,23 @@ func (c *controller) processItem(key string) error {
 	// if the item is in the queue but doesn't actually have any content, we'll get rid of it
 	if !exists {
 		klog.InfoS("item deleted", "key", key)
+		return nil
 	}
 
 	// the method returns an empty interface{} so we have to type cast it to our CR
 	podCustomizer := item.(*picturesv1.PodCustomizer)
 
 	// TODO: Check if the customizer has work that needs to be done and react accordingly
+	if podCustomizer.Status.ObservedGeneration != podCustomizer.Generation { // i.e. if there is work to do
+		err := c.client.CoreV1().Pods("default").Delete(context.TODO(), "test", metav1.DeleteOptions{})
+		if err != nil {
+			panic(err)
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 func main() {
@@ -116,12 +131,12 @@ func main() {
 		panic(err)
 	}
 
-	client := clientset.NewForConfigOrDie(config)                                     // this is just the clientset from the code-gen
-	factory := informers.NewSharedInformerFactory(client, 30*time.Second)             // the informers will resync every 30 seconds
+	customClient := customclientset.NewForConfigOrDie(config)                         // this is just the clientset from the code-gen
+	factory := informers.NewSharedInformerFactory(customClient, 30*time.Second)       // the informers will resync every 30 seconds
 	informer := factory.Kuberneddies().V1().PodCustomizers().Informer()               // make the actual informer
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()) // make a queue for the controller to use
 
-	controller := NewController(queue, informer, client)
+	controller := NewController(queue, informer, customClient)
 
 	// add callback functions for when these resources get added, updated, and deleted
 	controller.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -175,13 +190,14 @@ func main() {
 func NewController(
 	queue workqueue.RateLimitingInterface,
 	informer cache.SharedIndexInformer,
-	client clientset.Interface,
+	customClient customclientset.Interface,
 ) *controller {
 	return &controller{
-		queue:    queue,
-		informer: informer,
-		client:   client,
-		craiyon:  craiyon.NewClient(),
+		queue:        queue,
+		informer:     informer,
+		customClient: customClient,
+		craiyon:      craiyon.NewClient(),
+		client:       newClient(),
 		// deepai:   deepai.NewClient(),
 	}
 }
@@ -194,4 +210,21 @@ func (c *controller) enqueue(obj interface{}) {
 	}
 	klog.InfoS("adding to queue", "key", key)
 	c.queue.Add(key)
+}
+
+func newClient() *kubernetes.Clientset {
+	kubeconfig := flag.String("kubeconfig", "../../config/config", "kubeconfig file")
+	flag.Parse()
+
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	if err != nil {
+		panic(err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err)
+	}
+
+	return clientset
 }
