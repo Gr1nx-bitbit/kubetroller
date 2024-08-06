@@ -1,6 +1,6 @@
 apiVersion: kuberneddies.dev/v1
-kind: Picture
+kind: PodCustomizer
 metadata:
   name: "car"
 spec:
-  text: "A red car flying in space"
+  promote: false

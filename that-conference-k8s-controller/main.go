@@ -6,6 +6,8 @@ import (
 	"flag"
 	"time"
 
+	v1 "k8s.io/api/apps/v1"
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -109,16 +111,65 @@ func (c *controller) processItem(key string) error {
 	podCustomizer := item.(*picturesv1.PodCustomizer)
 
 	// TODO: Check if the customizer has work that needs to be done and react accordingly
-	if podCustomizer.Status.ObservedGeneration != podCustomizer.Generation { // i.e. if there is work to do
+	if !podCustomizer.Spec.Promote { // i.e. if there is work to do
 		err := c.client.CoreV1().Pods("default").Delete(context.TODO(), "test", metav1.DeleteOptions{})
 		if err != nil {
 			panic(err)
 		}
 
 		return err
+	} else {
+		pod, err := c.client.CoreV1().Pods("default").Get(context.TODO(), "custom-pod", metav1.GetOptions{})
+		if err != nil {
+			panic(err)
+		}
+
+		podSpec := apiv1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   pod.Name,
+				Labels: pod.Labels,
+			},
+			Spec: pod.Spec,
+		}
+
+		result, err := createDeployment("test-deployment", "default", 3, podSpec, c.client)
+		if err != nil {
+			return err
+		}
+
+		klog.InfoS("Pod promoted", "deployment", result.Name)
+
+		return nil
 	}
 
-	return nil
+}
+
+func createDeployment(name string, ns string, replicas int, podSpec apiv1.PodTemplateSpec, client *kubernetes.Clientset) (*v1.Deployment, error) {
+	reps := intToPointer(replicas)
+
+	deployment := &v1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: v1.DeploymentSpec{
+			Replicas: reps,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "test",
+				},
+			},
+			Template: podSpec,
+		},
+	}
+
+	result, err := client.AppsV1().Deployments(ns).Create(context.TODO(), deployment, metav1.CreateOptions{})
+
+	return result, err
+}
+
+func intToPointer(num int) *int32 {
+	n := int32(num)
+	return &n
 }
 
 func main() {
