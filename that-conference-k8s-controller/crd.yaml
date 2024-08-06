@@ -1,7 +1,7 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: podcustomizer.kuberneddies.dev
+  name: podcustomizers.kuberneddies.dev
 spec:
   group: kuberneddies.dev
   versions:
@@ -16,14 +16,14 @@ spec:
               type: object
               properties:
                 promote:
-                  type: bool
+                  type: boolean
             status:
               type: object
               properties:
                 numPromoted:
-                  type: int64
+                  type: integer
                 numDestroyed:
-                  type: int64
+                  type: integer
                 observedGeneration:
                   type: integer
                   format: int64
@@ -31,16 +31,16 @@ spec:
         status: {}
       additionalPrinterColumns:
         - name: promoted
-          type: bool
+          type: boolean
           jsonPath: .spec.promoted
         - name: numPromoted
-          type: int64
+          type: integer
           jsonPath: .status.numPromoted
         - name: numDestroyed
-          type: in64
+          type: integer
           jsonPath: .status.numDestroyed
   scope: Namespaced
   names:
-    plural: pictures
-    singular: picture
-    kind: Picture
+    plural: podcustomizers
+    singular: podcustomizer
+    kind: PodCustomizer

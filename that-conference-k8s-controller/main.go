@@ -26,8 +26,7 @@ import (
 	picturesv1 "github.com/eddiezane/that-conference-k8s-controller/pkg/apis/pictures/v1"
 	customclientset "github.com/eddiezane/that-conference-k8s-controller/pkg/generated/clientset/versioned"
 	informers "github.com/eddiezane/that-conference-k8s-controller/pkg/generated/informers/externalversions"
-
-	craiyon "github.com/eddiezane/that-conference-k8s-controller/pkg/craiyon"
+	// craiyon "github.com/eddiezane/that-conference-k8s-controller/pkg/craiyon"
 	// deepai "github.com/eddiezane/that-conference-k8s-controller/pkg/text2image"
 )
 
@@ -37,7 +36,7 @@ type controller struct {
 	customClient customclientset.Interface
 	client       *kubernetes.Clientset
 
-	craiyon *craiyon.Client
+	// craiyon *craiyon.Client
 	// deepai *deepai.Client
 }
 
@@ -119,7 +118,7 @@ func (c *controller) processItem(key string) error {
 
 		return err
 	} else {
-		pod, err := c.client.CoreV1().Pods("default").Get(context.TODO(), "custom-pod", metav1.GetOptions{})
+		pod, err := c.client.CoreV1().Pods("default").Get(context.TODO(), "test", metav1.GetOptions{})
 		if err != nil {
 			panic(err)
 		}
@@ -247,8 +246,8 @@ func NewController(
 		queue:        queue,
 		informer:     informer,
 		customClient: customClient,
-		craiyon:      craiyon.NewClient(),
-		client:       newClient(),
+		// craiyon:      craiyon.NewClient(),
+		client: newClient(),
 		// deepai:   deepai.NewClient(),
 	}
 }
