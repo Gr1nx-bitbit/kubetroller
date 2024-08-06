@@ -1,4 +1,4 @@
-#Instructions#
+# Instructions #
 
 + Fork the repo
 + At the root level, create a directory called "config" and copy your kubernetes config file (~/.kube/config) into it
