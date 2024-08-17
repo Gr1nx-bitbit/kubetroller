@@ -16,7 +16,7 @@ import (
 var wg sync.WaitGroup
 
 // change the replicas in the deployment
-func main() {
+func watchL() {
 	kubeconfig := flag.String("kubeconfig", "../../config/config", "kubeconfig file")
 	flag.Parse()
 
