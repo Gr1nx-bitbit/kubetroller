@@ -10,7 +10,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	// v1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 )
 
 type ClusterConfig struct {
@@ -22,6 +25,14 @@ type Cluster struct {
 	clusterName string
 	configPath  string
 	client      kubernetes.Interface
+}
+
+type Controller struct {
+	clusterName string
+	configPath  string
+	client      kubernetes.Interface
+	workqueue   workqueue.TypedRateLimitingInterface[cache.ObjectName]
+	recorder    record.EventRecorder
 }
 
 func main() {
@@ -36,7 +47,7 @@ func main() {
 	for index, clusterConfig := range clusterConfigs {
 		config, err := clientcmd.BuildConfigFromFlags("", clusterConfig.configPath)
 		if err != nil {
-			fmt.Println("Something went wrong with cluster config #"+string(index)+"! Error:", err.Error())
+			fmt.Printf("Something went wrong with cluster config #%d! Error: %s\n", index, err.Error())
 			os.Exit(1)
 		}
 
@@ -75,3 +86,12 @@ func getClustersFromFlag(clusterString string) []ClusterConfig {
 
 	return clusterConfigs
 }
+
+/*
+	So now that we have multiple clients, we need to spawn several controllers... well, we could do that
+	or is there a way of collapsing all the controllers into one and just having seperate clients? Well, each
+	client will also need an informer, and a workqueue so it is already a controller. Well, ok. By the way,
+	do we even need access to the controllers after we put the event handlers on them? Well, no... you kind
+	of just put the business logic and the event listeners and then you're hands off. Ok, so let's create
+	multiple instances of a controller that each listens to a diff namespace maybe?
+*/
