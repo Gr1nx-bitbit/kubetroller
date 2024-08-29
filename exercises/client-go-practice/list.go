@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func main() {
+func list() {
 	kubeconfig := flag.String("kubeconfig", "./config/config", "kubeconfig file")
 	flag.Parse()
 
