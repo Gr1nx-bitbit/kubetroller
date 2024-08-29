@@ -58,7 +58,7 @@ func main() {
 			fmt.Println("Error occured while getting pod with client #"+string(index)+"! Error:", err.Error())
 		}
 
-		fmt.Printf("Client #%d: %s\n", index, pod.Name)
+		fmt.Printf("Client %s: %s\n", cluster.clusterName, pod.Name)
 	}
 }
 
