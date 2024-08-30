@@ -15,6 +15,8 @@ import (
 	"k8s.io/klog/v2"
 
 	// v1 "k8s.io/api/apps/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	deployinformers "k8s.io/client-go/informers/apps/v1"
 	"k8s.io/client-go/kubernetes"
@@ -140,8 +142,37 @@ func NewController(
 	message := fmt.Sprintf("Setting up event handler for %s controller", config.clusterName)
 	klog.Info(message)
 
-	// need to make the method for this thing
+	// need to make the method for this thing -- HERE
 	controller.deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{})
 
 	return controller
+}
+
+// So next we have to start the informer factories which we can do in new controller
+// Then we have to actually make the method to start the controller
+
+func (c *Controller) Run(ctx context.Context) error {
+	defer utilruntime.HandleCrash()
+	defer c.workqueue.ShutDown()
+	logger := klog.FromContext(ctx)
+
+	logger.Info("Starting controller and workers!")
+
+	go wait.UntilWithContext(ctx, c.runWorker, time.Second)
+
+	logger.Info("Started workers")
+	<-ctx.Done()
+	logger.Info("Sutting down workers")
+
+	return nil
+}
+
+func (c *Controller) runWorker(ctx context.Context) {
+	for {
+
+	}
+}
+
+func (c *Controller) processNextWorkItem() {
+
 }
