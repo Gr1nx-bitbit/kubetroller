@@ -6,10 +6,20 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"golang.org/x/time/rate"
+
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
+
 	// v1 "k8s.io/api/apps/v1"
+	kubeinformers "k8s.io/client-go/informers"
+	deployinformers "k8s.io/client-go/informers/apps/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
@@ -31,8 +41,10 @@ type Controller struct {
 	clusterName string
 	configPath  string
 	client      kubernetes.Interface
-	workqueue   workqueue.TypedRateLimitingInterface[cache.ObjectName]
-	recorder    record.EventRecorder
+	// kInformerFactory   kubeinformers.SharedInformerFactory
+	deploymentInformer deployinformers.DeploymentInformer
+	workqueue          workqueue.TypedRateLimitingInterface[cache.ObjectName]
+	recorder           record.EventRecorder
 }
 
 func main() {
@@ -42,6 +54,7 @@ func main() {
 
 	// so now that we can get all the kubeconfig files, we have to build each client seperately...
 	// idk if trying to build the same client twice will break the program... guess we'll see!
+	controllers := make(map[string]Controller)
 	var clusters []Cluster
 	clusterConfigs := getClustersFromFlag(clusterString)
 	for index, clusterConfig := range clusterConfigs {
@@ -95,3 +108,40 @@ func getClustersFromFlag(clusterString string) []ClusterConfig {
 	of just put the business logic and the event listeners and then you're hands off. Ok, so let's create
 	multiple instances of a controller that each listens to a diff namespace maybe?
 */
+
+func NewController(
+	ctx context.Context,
+	clientset kubernetes.Interface,
+	config ClusterConfig) *Controller {
+	logger := klog.FromContext(ctx)
+	logger.V(4).Info("Creating event broadcaster")
+
+	eventBroadcaster := record.NewBroadcaster(record.WithContext(ctx))
+	eventBroadcaster.StartStructuredLogging(0)
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: clientset.CoreV1().Events("")})
+
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: config.clusterName})
+	ratelimiter := workqueue.NewTypedMaxOfRateLimiter(
+		workqueue.NewTypedItemExponentialFailureRateLimiter[cache.ObjectName](5*time.Millisecond, 1000*time.Second),
+		&workqueue.TypedBucketRateLimiter[cache.ObjectName]{Limiter: rate.NewLimiter(rate.Limit(50), 300)},
+	)
+	informerFactory := kubeinformers.NewSharedInformerFactory(clientset, time.Second*30)
+
+	controller := &Controller{
+		clusterName: config.clusterName,
+		configPath:  config.configPath,
+		client:      clientset,
+		// kInformerFactory: informerFactory,
+		deploymentInformer: informerFactory.Apps().V1().Deployments(),
+		workqueue:          workqueue.NewTypedRateLimitingQueue(ratelimiter),
+		recorder:           recorder,
+	}
+
+	message := fmt.Sprintf("Setting up event handler for %s controller", config.clusterName)
+	klog.Info(message)
+
+	// need to make the method for this thing
+	controller.deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{})
+
+	return controller
+}
