@@ -162,6 +162,8 @@ func NewController(
 		},
 	})
 
+	informerFactory.Start(ctx.Done())
+
 	return controller
 }
 
