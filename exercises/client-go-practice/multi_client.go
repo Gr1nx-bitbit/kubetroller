@@ -156,8 +156,28 @@ func NewController(
 	// need to make the method for this thing -- HERE
 	controller.deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.checkToQueue,
+		// Ok, so we need this to change, because what happens when a deployment is updated by its name?
+		// that deployment which is the same as the oldobj is now a new key inside the map and consequently
+		// if the name isn't changed but something happens to the controller that isn't in deployment config
+		// we won't know. I think we can ignore that second part but we at least need to acknowledge the name
+		// by passing in both oldobj and newobj or checking there
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			controller.checkToQueue(newObj)
+			oldObjRef, oldErr := cache.ObjectToName(oldObj)
+			if oldErr != nil {
+				utilruntime.HandleError(oldErr)
+			}
+
+			newObjRef, newErr := cache.ObjectToName(newObj)
+			if newErr != nil {
+				utilruntime.HandleError(newErr)
+			}
+
+			if oldObjRef.Name != newObjRef.Name {
+				delete(controller.deployments, newObjRef.Name)
+				controller.checkToQueue(newObj)
+			} else {
+				controller.checkToQueue(newObj)
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
 			if objRef, err := cache.ObjectToName(obj); err != nil {
