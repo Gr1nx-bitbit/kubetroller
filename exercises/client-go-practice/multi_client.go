@@ -139,7 +139,7 @@ func NewController(
 		recorder:           recorder,
 	}
 
-	message := fmt.Sprintf("Setting up event handler for %s controller", config.clusterName)
+	message := fmt.Sprintf("Setting up event handler for controller %s", config.clusterName)
 	klog.Info(message)
 
 	// need to make the method for this thing -- HERE
@@ -168,11 +168,38 @@ func (c *Controller) Run(ctx context.Context) error {
 }
 
 func (c *Controller) runWorker(ctx context.Context) {
-	for {
-
+	for c.processNextWorkItem(ctx) {
 	}
 }
 
-func (c *Controller) processNextWorkItem() {
+func (c *Controller) processNextWorkItem(ctx context.Context) bool {
+	objRef, shutdown := c.workqueue.Get()
+	logger := klog.FromContext(ctx)
 
+	if shutdown {
+		logger.Info("Queue signaled shutdown!")
+		return false
+	}
+
+	defer c.workqueue.Done(objRef)
+
+	err := c.syncHandler(ctx, objRef)
+
+	if err == nil {
+		c.workqueue.Forget(objRef)
+		logger.Info("Successfully synced", "object reference", objRef)
+		return true
+	}
+
+	// yeah, if we get an error, we'll just retry
+	utilruntime.HandleErrorWithContext(ctx, err, "Error syncing; requeuing for later retry", "objectReference", objRef)
+
+	// I don't know if this will forget an object after it's been retried after a certain amount of requeues
+	// I guess we'll see (we can delibretally fail an object)
+	c.workqueue.AddRateLimited(objRef)
+	return true
+}
+
+func (c *Controller) syncHandler(ctx context.Context, objref cache.ObjectName) error {
+	return nil
 }
