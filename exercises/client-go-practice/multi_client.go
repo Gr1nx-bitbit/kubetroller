@@ -33,12 +33,6 @@ type ClusterConfig struct {
 	configPath  string
 }
 
-// type Cluster struct {
-// 	clusterName string
-// 	configPath  string
-// 	client      kubernetes.Interface
-// }
-
 type Controller struct {
 	clusterName string
 	configPath  string
@@ -58,7 +52,6 @@ func main() {
 	// so now that we can get all the kubeconfig files, we have to build each client seperately...
 	// idk if trying to build the same client twice will break the program... guess we'll see!
 	controllers := make(map[string]*Controller)
-	// var clusters []Cluster
 	clusterConfigs := getClustersFromFlag(clusterString)
 	for index, clusterConfig := range clusterConfigs {
 		config, err := clientcmd.BuildConfigFromFlags("", clusterConfig.configPath)
@@ -72,12 +65,6 @@ func main() {
 			fmt.Println("Trouble building client! Error: ", err.Error())
 			os.Exit(2)
 		}
-
-		// clusters = append(clusters, Cluster{
-		// 	clusterName: clusterConfig.clusterName,
-		// 	configPath:  clusterConfig.configPath,
-		// 	client:      kclient,
-		// })
 
 		controllers[clusterConfig.clusterName] = NewController(ctx, kclient, clusterConfig)
 	}
