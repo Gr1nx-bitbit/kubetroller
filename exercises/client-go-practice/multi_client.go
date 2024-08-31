@@ -11,7 +11,6 @@ import (
 	"golang.org/x/time/rate"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	// v1 "k8s.io/api/apps/v1"
@@ -34,11 +33,11 @@ type ClusterConfig struct {
 	configPath  string
 }
 
-type Cluster struct {
-	clusterName string
-	configPath  string
-	client      kubernetes.Interface
-}
+// type Cluster struct {
+// 	clusterName string
+// 	configPath  string
+// 	client      kubernetes.Interface
+// }
 
 type Controller struct {
 	clusterName string
@@ -59,7 +58,7 @@ func main() {
 	// so now that we can get all the kubeconfig files, we have to build each client seperately...
 	// idk if trying to build the same client twice will break the program... guess we'll see!
 	controllers := make(map[string]*Controller)
-	var clusters []Cluster
+	// var clusters []Cluster
 	clusterConfigs := getClustersFromFlag(clusterString)
 	for index, clusterConfig := range clusterConfigs {
 		config, err := clientcmd.BuildConfigFromFlags("", clusterConfig.configPath)
@@ -74,23 +73,24 @@ func main() {
 			os.Exit(2)
 		}
 
-		clusters = append(clusters, Cluster{
-			clusterName: clusterConfig.clusterName,
-			configPath:  clusterConfig.configPath,
-			client:      kclient,
-		})
+		// clusters = append(clusters, Cluster{
+		// 	clusterName: clusterConfig.clusterName,
+		// 	configPath:  clusterConfig.configPath,
+		// 	client:      kclient,
+		// })
 
 		controllers[clusterConfig.clusterName] = NewController(ctx, kclient, clusterConfig)
 	}
 
-	for index, cluster := range clusters {
-		pod, err := cluster.client.CoreV1().Pods("default").Get(context.TODO(), "test", metav1.GetOptions{})
-		if err != nil {
-			fmt.Println("Error occured while getting pod with client #"+string(index)+"! Error:", err.Error())
-		}
-
-		fmt.Printf("Client %s: %s\n", cluster.clusterName, pod.Name)
+	if err := controllers["default"].Run(ctx); err != nil {
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
+
+	// for controllerName, controller := range controllers {
+	// 	msg := fmt.Sprintf("Invoking controller %s", controllerName)
+	// 	klog.InfoS(msg)
+	// 	go controller.Run(ctx)
+	// }
 }
 
 func getClustersFromFlag(clusterString string) []ClusterConfig {
