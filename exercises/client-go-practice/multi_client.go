@@ -200,6 +200,28 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 	return true
 }
 
+/*
+Ok, so for this controller we want to get info about all of the deployments in the cluster (it'll be specific ns later)
+I think just as a sanity check let's print out the name, namespace and image of each deployment in the cluster
+*/
 func (c *Controller) syncHandler(ctx context.Context, objref cache.ObjectName) error {
+	logger := klog.FromContext(ctx)
+	namespaces, err := c.client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, namespace := range namespaces.Items {
+		deployList, err := c.client.AppsV1().Deployments(namespace.Name).List(context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			return err
+		}
+
+		for _, deployment := range deployList.Items {
+			msg := fmt.Sprintf("%s : %s", &deployment.Namespace, &deployment.Name)
+			logger.Info(msg)
+		}
+	}
+
 	return nil
 }
