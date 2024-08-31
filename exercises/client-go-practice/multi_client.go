@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -83,20 +82,26 @@ func main() {
 		controllers[clusterConfig.clusterName] = NewController(ctx, kclient, clusterConfig)
 	}
 
-	var wg sync.WaitGroup
-	for controllerName, controller := range controllers {
-		msg := fmt.Sprintf("Invoking controller %s", controllerName)
-		klog.InfoS(msg)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := controller.Run(ctx); err != nil {
-				klog.FlushAndExit(klog.ExitFlushTimeout, 1)
-			}
-		}()
+	msg := fmt.Sprintf("Invoking controller %s", controllers["default"].clusterName)
+	klog.InfoS(msg)
+	if err := controllers["default"].Run(ctx); err != nil {
+		klog.FlushAndExit(klog.ExitFlushTimeout, 2)
 	}
 
-	wg.Wait()
+	// var wg sync.WaitGroup
+	// for controllerName, controller := range controllers {
+	// 	msg := fmt.Sprintf("Invoking controller %s", controllerName)
+	// 	klog.InfoS(msg)
+	// 	wg.Add(1)
+	// 	go func() {
+	// 		defer wg.Done()
+	// 		if err := controller.Run(ctx); err != nil {
+	// 			klog.FlushAndExit(klog.ExitFlushTimeout, 1)
+	// 		}
+	// 	}()
+	// }
+
+	// wg.Wait()
 }
 
 func getClustersFromFlag(clusterString string) []ClusterConfig {
@@ -181,6 +186,10 @@ func (c *Controller) Run(ctx context.Context) error {
 	defer c.workqueue.ShutDown()
 	logger := klog.FromContext(ctx)
 
+	if ok := cache.WaitForCacheSync(ctx.Done(), c.deploymentInformer.Informer().HasSynced); !ok {
+		return fmt.Errorf("failed to wait for caches to sync! controller: %s", c.clusterName)
+	}
+
 	logger.Info("Starting controller and workers!", "controller", c.clusterName)
 
 	go wait.UntilWithContext(ctx, c.runWorker, time.Second)
@@ -260,7 +269,7 @@ func (c *Controller) enqueueDeployment(obj interface{}) {
 		utilruntime.HandleError(err)
 		return
 	} else {
-		// klog.InfoS("Adding to queue", "key", objref)
+		// klog.InfoS("Adding to queue", "key", objref, "controller", c.clusterName)
 		c.workqueue.Add(objref)
 	}
 }
