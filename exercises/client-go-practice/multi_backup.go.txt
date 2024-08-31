@@ -199,10 +199,10 @@ func (c *Controller) runWorker(ctx context.Context) {
 
 func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 	objRef, shutdown := c.workqueue.Get()
-	// logger := klog.FromContext(ctx)
+	logger := klog.FromContext(ctx)
 
 	if shutdown {
-		// logger.Info("Queue signaled shutdown!", "controller", c.clusterName)
+		logger.Info("Queue signaled shutdown!", "controller", c.clusterName)
 		return false
 	}
 
@@ -212,7 +212,7 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 
 	if err == nil {
 		c.workqueue.Forget(objRef)
-		// logger.Info("Successfully synced", "object reference", objRef, "controller", c.clusterName)
+		logger.Info("Successfully synced", "object reference", objRef, "controller", c.clusterName)
 		return true
 	}
 
@@ -260,7 +260,7 @@ func (c *Controller) enqueueDeployment(obj interface{}) {
 		utilruntime.HandleError(err)
 		return
 	} else {
-		// klog.InfoS("Adding to queue", "key", objref)
+		klog.InfoS("Adding to queue", "key", objref)
 		c.workqueue.Add(objref)
 	}
 }
