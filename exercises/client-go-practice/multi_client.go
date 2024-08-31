@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
 
 type ClusterConfig struct {
@@ -50,13 +51,14 @@ type Controller struct {
 }
 
 func main() {
+	ctx := signals.SetupSignalHandler()
 	var clusterString string
 	flag.StringVar(&clusterString, "clusters", "EMPTY", "specify the names of the clusters and their kubeconfig file in a colon-pair comma seperated format, e.g. -clusters='name1:config,name2:config' ")
 	flag.Parse()
 
 	// so now that we can get all the kubeconfig files, we have to build each client seperately...
 	// idk if trying to build the same client twice will break the program... guess we'll see!
-	controllers := make(map[string]Controller)
+	controllers := make(map[string]*Controller)
 	var clusters []Cluster
 	clusterConfigs := getClustersFromFlag(clusterString)
 	for index, clusterConfig := range clusterConfigs {
@@ -69,6 +71,7 @@ func main() {
 		kclient, err := kubernetes.NewForConfig(config)
 		if err != nil {
 			fmt.Println("Trouble building client! Error: ", err.Error())
+			os.Exit(2)
 		}
 
 		clusters = append(clusters, Cluster{
@@ -76,6 +79,8 @@ func main() {
 			configPath:  clusterConfig.configPath,
 			client:      kclient,
 		})
+
+		controllers[clusterConfig.clusterName] = NewController(ctx, kclient, clusterConfig)
 	}
 
 	for index, cluster := range clusters {
@@ -156,13 +161,13 @@ func (c *Controller) Run(ctx context.Context) error {
 	defer c.workqueue.ShutDown()
 	logger := klog.FromContext(ctx)
 
-	logger.Info("Starting controller and workers!")
+	logger.Info("Starting controller and workers!", "controller", c.clusterName)
 
 	go wait.UntilWithContext(ctx, c.runWorker, time.Second)
 
-	logger.Info("Started workers")
+	logger.Info("Started workers", "controller", c.clusterName)
 	<-ctx.Done()
-	logger.Info("Sutting down workers")
+	logger.Info("Sutting down workers", "controller", c.clusterName)
 
 	return nil
 }
@@ -177,7 +182,7 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 	logger := klog.FromContext(ctx)
 
 	if shutdown {
-		logger.Info("Queue signaled shutdown!")
+		logger.Info("Queue signaled shutdown!", "controller", c.clusterName)
 		return false
 	}
 
@@ -187,12 +192,12 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 
 	if err == nil {
 		c.workqueue.Forget(objRef)
-		logger.Info("Successfully synced", "object reference", objRef)
+		logger.Info("Successfully synced", "object reference", objRef, "controller", c.clusterName)
 		return true
 	}
 
 	// yeah, if we get an error, we'll just retry
-	utilruntime.HandleErrorWithContext(ctx, err, "Error syncing; requeuing for later retry", "objectReference", objRef)
+	utilruntime.HandleErrorWithContext(ctx, err, "Error syncing; requeuing for later retry", "objectReference", objRef, "controller", c.clusterName)
 
 	// I don't know if this will forget an object after it's been retried after a certain amount of requeues
 	// I guess we'll see (we can delibretally fail an object)
@@ -205,23 +210,27 @@ Ok, so for this controller we want to get info about all of the deployments in t
 I think just as a sanity check let's print out the name, namespace and image of each deployment in the cluster
 */
 func (c *Controller) syncHandler(ctx context.Context, objref cache.ObjectName) error {
+
 	logger := klog.FromContext(ctx)
-	namespaces, err := c.client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, namespace := range namespaces.Items {
-		deployList, err := c.client.AppsV1().Deployments(namespace.Name).List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			return err
-		}
-
-		for _, deployment := range deployList.Items {
-			msg := fmt.Sprintf("%s : %s", &deployment.Namespace, &deployment.Name)
-			logger.Info(msg)
-		}
-	}
-
+	msg := fmt.Sprintf("%s : %s", objref.Namespace, objref.Name)
+	logger.Info(msg)
 	return nil
+	// namespaces, err := c.client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	// if err != nil {
+	// 	return err
+	// }
+
+	// for _, namespace := range namespaces.Items {
+	// 	deployList, err := c.client.AppsV1().Deployments(namespace.Name).List(context.TODO(), metav1.ListOptions{})
+	// 	if err != nil {
+	// 		return err
+	// 	}
+
+	// 	for _, deployment := range deployList.Items {
+	// 		msg := fmt.Sprintf("%s : %s", deployment.Namespace, deployment.Name)
+	// 		logger.Info(msg, "controller", c.clusterName)
+	// 	}
+	// }
+
+	// return nil
 }
