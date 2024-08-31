@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -82,15 +83,20 @@ func main() {
 		controllers[clusterConfig.clusterName] = NewController(ctx, kclient, clusterConfig)
 	}
 
-	if err := controllers["default"].Run(ctx); err != nil {
-		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
+	var wg sync.WaitGroup
+	for controllerName, controller := range controllers {
+		msg := fmt.Sprintf("Invoking controller %s", controllerName)
+		klog.InfoS(msg)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := controller.Run(ctx); err != nil {
+				klog.FlushAndExit(klog.ExitFlushTimeout, 1)
+			}
+		}()
 	}
 
-	// for controllerName, controller := range controllers {
-	// 	msg := fmt.Sprintf("Invoking controller %s", controllerName)
-	// 	klog.InfoS(msg)
-	// 	go controller.Run(ctx)
-	// }
+	wg.Wait()
 }
 
 func getClustersFromFlag(clusterString string) []ClusterConfig {
