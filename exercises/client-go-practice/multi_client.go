@@ -232,7 +232,7 @@ I think just as a sanity check let's print out the name, namespace and image of 
 func (c *Controller) syncHandler(ctx context.Context, objref cache.ObjectName) error {
 
 	logger := klog.FromContext(ctx)
-	msg := fmt.Sprintf("%s : %s", objref.Namespace, objref.Name)
+	msg := fmt.Sprintf("%s : %s | controller: %s", objref.Namespace, objref.Name, c.clusterName)
 	logger.Info(msg)
 	return nil
 	// namespaces, err := c.client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
