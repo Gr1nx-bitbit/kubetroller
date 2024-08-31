@@ -41,6 +41,13 @@ type Controller struct {
 	deploymentInformer deployinformers.DeploymentInformer
 	workqueue          workqueue.TypedRateLimitingInterface[cache.ObjectName]
 	recorder           record.EventRecorder
+	deployments        map[string]DeployConfigs
+}
+
+type DeployConfigs struct {
+	cluster   string
+	namespace string
+	image     string
 }
 
 func main() {
@@ -130,7 +137,7 @@ func NewController(
 		workqueue.NewTypedItemExponentialFailureRateLimiter[cache.ObjectName](5*time.Millisecond, 1000*time.Second),
 		&workqueue.TypedBucketRateLimiter[cache.ObjectName]{Limiter: rate.NewLimiter(rate.Limit(50), 300)},
 	)
-	informerFactory := kubeinformers.NewSharedInformerFactory(clientset, time.Second*30)
+	informerFactory := kubeinformers.NewSharedInformerFactory(clientset, time.Second*10)
 
 	controller := &Controller{
 		clusterName:        config.clusterName,
@@ -140,6 +147,7 @@ func NewController(
 		deploymentInformer: informerFactory.Apps().V1().Deployments(),
 		workqueue:          workqueue.NewTypedRateLimitingQueue(ratelimiter),
 		recorder:           recorder,
+		deployments:        make(map[string]DeployConfigs),
 	}
 
 	message := fmt.Sprintf("Setting up event handler for controller %s", config.clusterName)
@@ -147,14 +155,15 @@ func NewController(
 
 	// need to make the method for this thing -- HERE
 	controller.deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueueDeployment,
+		AddFunc: controller.checkToQueue,
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			controller.enqueueDeployment(newObj)
+			controller.checkToQueue(newObj)
 		},
 		DeleteFunc: func(obj interface{}) {
 			if objRef, err := cache.ObjectToName(obj); err != nil {
 				utilruntime.HandleError(err)
 			} else {
+				delete(controller.deployments, objRef.Name)
 				logger.Info("delete callback invoked!", "key", objRef)
 			}
 		},
@@ -251,12 +260,27 @@ func (c *Controller) syncHandler(ctx context.Context, objref cache.ObjectName) e
 	// return nil
 }
 
-func (c *Controller) enqueueDeployment(obj interface{}) {
+func (c *Controller) checkToQueue(obj interface{}) {
 	if objref, err := cache.ObjectToName(obj); err != nil {
 		utilruntime.HandleError(err)
-		return
 	} else {
-		klog.InfoS("Adding to queue", "key", objref, "controller", c.clusterName)
-		c.workqueue.Add(objref)
+		value, exists := c.deployments[objref.Name]
+
+		if !exists {
+			c.deployments[objref.Name] = DeployConfigs{cluster: c.clusterName, namespace: objref.Namespace, image: "popcorn"}
+			c.enqueueDeployment(objref)
+		} else {
+			if value == c.deployments[objref.Name] {
+				return
+			} else {
+				c.enqueueDeployment(objref)
+			}
+		}
+
 	}
+}
+
+func (c *Controller) enqueueDeployment(objref cache.ObjectName) {
+	klog.InfoS("Adding to queue", "key", objref, "controller", c.clusterName)
+	c.workqueue.Add(objref)
 }
