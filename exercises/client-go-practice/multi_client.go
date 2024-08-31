@@ -148,7 +148,19 @@ func NewController(
 	klog.Info(message)
 
 	// need to make the method for this thing -- HERE
-	controller.deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{})
+	controller.deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.enqueueDeployment,
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			controller.enqueueDeployment(newObj)
+		},
+		DeleteFunc: func(obj interface{}) {
+			if objRef, err := cache.ObjectToName(obj); err != nil {
+				utilruntime.HandleError(err)
+			} else {
+				logger.Info("delete callback invoked!", "key", objRef)
+			}
+		},
+	})
 
 	return controller
 }
@@ -233,4 +245,14 @@ func (c *Controller) syncHandler(ctx context.Context, objref cache.ObjectName) e
 	// }
 
 	// return nil
+}
+
+func (c *Controller) enqueueDeployment(obj interface{}) {
+	if objref, err := cache.ObjectToName(obj); err != nil {
+		utilruntime.HandleError(err)
+		return
+	} else {
+		klog.InfoS("Adding to queue", "key", objref)
+		c.workqueue.Add(objref)
+	}
 }
