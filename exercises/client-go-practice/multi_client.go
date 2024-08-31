@@ -34,10 +34,10 @@ type ClusterConfig struct {
 }
 
 type Controller struct {
-	clusterName string
-	configPath  string
-	client      kubernetes.Interface
-	// kInformerFactory   kubeinformers.SharedInformerFactory
+	clusterName        string
+	configPath         string
+	client             kubernetes.Interface
+	kInformerFactory   kubeinformers.SharedInformerFactory
 	deploymentInformer deployinformers.DeploymentInformer
 	workqueue          workqueue.TypedRateLimitingInterface[cache.ObjectName]
 	recorder           record.EventRecorder
@@ -133,10 +133,10 @@ func NewController(
 	informerFactory := kubeinformers.NewSharedInformerFactory(clientset, time.Second*30)
 
 	controller := &Controller{
-		clusterName: config.clusterName,
-		configPath:  config.configPath,
-		client:      clientset,
-		// kInformerFactory: informerFactory,
+		clusterName:        config.clusterName,
+		configPath:         config.configPath,
+		client:             clientset,
+		kInformerFactory:   informerFactory,
 		deploymentInformer: informerFactory.Apps().V1().Deployments(),
 		workqueue:          workqueue.NewTypedRateLimitingQueue(ratelimiter),
 		recorder:           recorder,
@@ -160,8 +160,6 @@ func NewController(
 		},
 	})
 
-	informerFactory.Start(ctx.Done())
-
 	return controller
 }
 
@@ -177,7 +175,8 @@ func (c *Controller) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to wait for caches to sync! controller: %s", c.clusterName)
 	}
 
-	logger.Info("Starting controller and workers!", "controller", c.clusterName)
+	logger.Info("Starting controller, workers, and informer!", "controller", c.clusterName)
+	c.kInformerFactory.Start(ctx.Done())
 
 	go wait.UntilWithContext(ctx, c.runWorker, time.Second)
 
