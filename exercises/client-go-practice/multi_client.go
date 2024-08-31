@@ -171,12 +171,13 @@ func (c *Controller) Run(ctx context.Context) error {
 	defer c.workqueue.ShutDown()
 	logger := klog.FromContext(ctx)
 
+	c.kInformerFactory.Start(ctx.Done())
+
 	if ok := cache.WaitForCacheSync(ctx.Done(), c.deploymentInformer.Informer().HasSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync! controller: %s", c.clusterName)
 	}
 
 	logger.Info("Starting controller, workers, and informer!", "controller", c.clusterName)
-	c.kInformerFactory.Start(ctx.Done())
 
 	go wait.UntilWithContext(ctx, c.runWorker, time.Second)
 
@@ -255,7 +256,7 @@ func (c *Controller) enqueueDeployment(obj interface{}) {
 		utilruntime.HandleError(err)
 		return
 	} else {
-		// klog.InfoS("Adding to queue", "key", objref, "controller", c.clusterName)
+		klog.InfoS("Adding to queue", "key", objref, "controller", c.clusterName)
 		c.workqueue.Add(objref)
 	}
 }
