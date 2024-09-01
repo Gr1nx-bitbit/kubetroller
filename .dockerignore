@@ -1,0 +1,7 @@
+controllers/
+exercises/
+notes/
+that-conference-k8s-controller/
+.git/
+.gitignore
+README.md
