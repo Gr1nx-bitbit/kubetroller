@@ -46,9 +46,9 @@ type Controller struct {
 }
 
 type DeployConfigs struct {
-	cluster   string
-	namespace string
-	image     string
+	Cluster   string `json:"cluster"`
+	Namespace string `json:"namespace"`
+	Image     string `json:"image"`
 }
 
 // we need this for in-cluster configuration
@@ -94,12 +94,6 @@ func main() {
 
 		controllers[clusterConfig.clusterName] = NewController(ctx, kclient, clusterConfig)
 	}
-
-	// msg := fmt.Sprintf("Invoking controller %s", controllers["default"].clusterName)
-	// klog.InfoS(msg)
-	// if err := controllers["default"].Run(ctx); err != nil {
-	// 	klog.FlushAndExit(klog.ExitFlushTimeout, 2)
-	// }
 
 	var wg sync.WaitGroup
 	for controllerName, controller := range controllers {
@@ -300,13 +294,14 @@ func (c *Controller) syncHandler(ctx context.Context, objref cache.ObjectName) e
 }
 
 func (c *Controller) checkToQueue(obj interface{}) {
+	// objref holds the name and namespace of the deployment that was picked up by the informer
 	if objref, err := cache.ObjectToName(obj); err != nil {
 		utilruntime.HandleError(err)
 	} else {
 		value, exists := c.deployments[objref.Name]
 
 		if !exists {
-			c.deployments[objref.Name] = DeployConfigs{cluster: c.clusterName, namespace: objref.Namespace, image: "popcorn"}
+			c.deployments[objref.Name] = DeployConfigs{Cluster: c.clusterName, Namespace: objref.Namespace}
 			c.enqueueDeployment(objref)
 		} else {
 			if value == c.deployments[objref.Name] {
