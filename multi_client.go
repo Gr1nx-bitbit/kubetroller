@@ -51,23 +51,26 @@ type DeployConfigs struct {
 	Image     string `json:"image"`
 }
 
-// we need this for in-cluster configuration
-// i.e. the credentials are in kubeconfig but we need the address and port
-// Ok, I think the problem is that I'm using this url inside of the container
-// the container has its own ports and localhost (its own network) so naturally
-// unless there is another container inside of it running kubernetes, when it
-// trys to connect to my kubernetes container it looks inside itself and finds
-// nothing. I have to get the container to look OUTSIDE itself and onto the HOST
-// machines localhost for the cluster. I think when a container is hosted in a cluster
-// you just map the port of the container to the pod and then that to a service
-// so the controller can communciate with the API server.
+/*
+	we need this for in-cluster configuration
+	i.e. the credentials are in kubeconfig but we need the address and port
+	Ok, I think the problem is that I'm using this url inside of the container
+	the container has its own ports and localhost (its own network) so naturally
+	unless there is another container inside of it running kubernetes, when it
+	trys to connect to my kubernetes container it looks inside itself and finds
+	nothing. I have to get the container to look OUTSIDE itself and onto the HOST
+	machines localhost for the cluster. I think when a container is hosted in a cluster
+	you just map the port of the container to the pod and then that to a service
+	so the controller can communciate with the API server.
 
-// haha! It worked. The problem was that the container was on the docker bride
-// network and so didn't know of the host machines network. I just added a
-// --network="host" to the command and it works perfectly!
-const (
-	masterURL = "https://127.0.0.1:6443" // getMasterURL()
-)
+	haha! It worked. The problem was that the container was on the docker bride
+	network and so didn't know of the host machines network. I just added a
+	--network="host" to the command and it works perfectly!
+*/
+
+// const (
+// 	masterURL = "https://127.0.0.1:6443" // getMasterURL()
+// )
 
 func main() {
 	ctx := signals.SetupSignalHandler()
@@ -80,7 +83,7 @@ func main() {
 	controllers := make(map[string]*Controller)
 	clusterConfigs := getClustersFromFlag(clusterString)
 	for index, clusterConfig := range clusterConfigs {
-		config, err := clientcmd.BuildConfigFromFlags(masterURL, clusterConfig.configPath)
+		config, err := clientcmd.BuildConfigFromFlags("", clusterConfig.configPath)
 		if err != nil {
 			fmt.Printf("Something went wrong with cluster config #%d! Error: %s\n", index, err.Error())
 			os.Exit(1)
