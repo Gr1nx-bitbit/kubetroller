@@ -1,6 +1,9 @@
 config/
 custom-controller/
+parser/
 templates/
+styles/
+out/
 makefile.txt
 requirements.ipynb
 send.go

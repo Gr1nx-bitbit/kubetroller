@@ -1,4 +1,4 @@
-module dynamicController
+module github.com/Gr1nx-bitibt/kubetroller
 
 go 1.22.2
 

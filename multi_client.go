@@ -68,9 +68,9 @@ type DeployConfigs struct {
 	--network="host" to the command and it works perfectly!
 */
 
-// const (
-// 	masterURL = "https://127.0.0.1:6443" // getMasterURL()
-// )
+const (
+// masterURL = "https://127.0.0.1:6443" // getMasterURL()
+)
 
 func main() {
 	ctx := signals.SetupSignalHandler()
@@ -110,6 +110,8 @@ func main() {
 			}
 		}()
 	}
+
+	formatData(&controllers)
 
 	wg.Wait()
 }
