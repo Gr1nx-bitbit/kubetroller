@@ -61,6 +61,10 @@ type DeployConfigs struct {
 // machines localhost for the cluster. I think when a container is hosted in a cluster
 // you just map the port of the container to the pod and then that to a service
 // so the controller can communciate with the API server.
+
+// haha! It worked. The problem was that the container was on the docker bride
+// network and so didn't know of the host machines network. I just added a
+// --network="host" to the command and it works perfectly!
 const (
 	masterURL = "https://127.0.0.1:6443" // getMasterURL()
 )
