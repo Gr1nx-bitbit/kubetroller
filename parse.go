@@ -8,18 +8,42 @@ import (
 )
 
 const (
+	ROW     = "<tr>__ROW__</tr>"
+	CLUSTER = "<td>__CLUSTER__</td>"
 	SERVICE = "<td>__SERVICE__</td>"
+	VERSION = "<td>__VERSION__</td>"
 )
 
-func formatData(controllers *map[string]*Controller) {
+func formatData(controllers *map[string]*Controller, services map[string]interface{}) {
 	/*
 		Ok, so just as our first go, we want to take the names of the clusters
 		and make a column for each of them within the html file.
 	*/
 
-	services := ""
-	for cluster := range *controllers {
-		services += strings.Replace(SERVICE, "__SERVICE__", cluster, 1)
+	// ------------------------
+	copy := *controllers // So I don't copy the controllers for each for loop
+	clusters := ""
+	for cluster := range copy {
+		clusters += strings.Replace(CLUSTER, "__CLUSTER__", cluster, 1)
+	}
+
+	// ------------------------
+	rows := ""
+	for service := range services {
+		rowInner := ""
+
+		rowInner += strings.Replace(SERVICE, "__SERVICE__", service, 1)
+		for _, controller := range copy {
+			if config, exists := controller.deployments[service]; exists {
+				rowInner += strings.Replace(VERSION, "__VERSION__", config.Image, 1)
+			} else {
+				rowInner += strings.Replace(VERSION, "__VERSION__", "No version found", 1)
+			}
+		}
+
+		row := strings.Replace(ROW, "__ROW__", rowInner, 1)
+		rows += row
+
 	}
 
 	// ------------------------
@@ -31,6 +55,7 @@ func formatData(controllers *map[string]*Controller) {
 
 	fileContent := string(bytes)
 	fileContent = strings.Replace(fileContent, "__DATE__", time.Now().Format("2006-January-02"), 1)
-	fileContent = strings.Replace(fileContent, "__SERVICE_NAMES__", services, 1)
-	os.WriteFile("./out/allCoallatedTemplate.html", []byte(fileContent), 0644)
+	fileContent = strings.Replace(fileContent, "__CLUSTER_NAMES__", clusters, 1)
+	fileContent = strings.Replace(fileContent, "__VERSIONS__", rows, 1)
+	os.WriteFile("./out/allCoallated.html", []byte(fileContent), 0644)
 }
