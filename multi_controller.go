@@ -15,6 +15,7 @@ import (
 	"k8s.io/klog/v2"
 
 	// v1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
@@ -281,6 +282,21 @@ func (c *Controller) syncHandler(ctx context.Context, objref cache.ObjectName) e
 	logger := klog.FromContext(ctx)
 	msg := fmt.Sprintf("%s : %s | controller: %s", objref.Namespace, objref.Name, c.clusterName)
 	logger.Info(msg)
+
+	deploy, err := c.client.AppsV1().Deployments(objref.Namespace).Get(context.TODO(), objref.Name, v1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	replacement := c.deployments[objref.Name]
+
+	containers := ""
+	for _, container := range deploy.Spec.Template.Spec.Containers {
+		containers += fmt.Sprintf("%s | ", container.Image)
+	}
+
+	replacement.Image = containers
+	c.deployments[objref.Name] = replacement
 	return nil
 	// namespaces, err := c.client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	// if err != nil {
@@ -316,7 +332,7 @@ func (c *Controller) checkToQueue(obj interface{}) {
 		value, exists := c.deployments[objref.Name]
 
 		if !exists {
-			c.deployments[objref.Name] = DeployConfigs{Cluster: c.clusterName, Namespace: objref.Namespace, Image: "popcorn"}
+			c.deployments[objref.Name] = DeployConfigs{Cluster: c.clusterName, Namespace: objref.Namespace, Image: "No image found"}
 			c.enqueueDeployment(objref)
 		} else {
 			if value == c.deployments[objref.Name] {

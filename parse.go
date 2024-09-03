@@ -37,7 +37,7 @@ func formatData(controllers *map[string]*Controller, services map[string]interfa
 			if config, exists := controller.deployments[service]; exists {
 				rowInner += strings.Replace(VERSION, "__VERSION__", config.Image, 1)
 			} else {
-				rowInner += strings.Replace(VERSION, "__VERSION__", "No version found", 1)
+				rowInner += strings.Replace(VERSION, "__VERSION__", "No image found", 1)
 			}
 		}
 
