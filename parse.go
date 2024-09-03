@@ -20,7 +20,6 @@ func formatData(controllers *map[string]*Controller, services map[string]interfa
 		and make a column for each of them within the html file.
 	*/
 
-	// ------------------------
 	copy := *controllers // So I don't copy the controllers for each for loop
 	clusters := ""
 	for cluster := range copy {
@@ -28,6 +27,7 @@ func formatData(controllers *map[string]*Controller, services map[string]interfa
 	}
 
 	// ------------------------
+
 	rows := ""
 	for service := range services {
 		rowInner := ""
