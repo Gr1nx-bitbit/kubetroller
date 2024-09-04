@@ -11,7 +11,7 @@ const (
 	ROW     = "<tr>__ROW__</tr>"
 	CLUSTER = "<td>__CLUSTER__</td>"
 	SERVICE = "<td>__SERVICE__</td>"
-	VERSION = "<td>__VERSION__</td>"
+	VERSION = "<td style=\"background-color: #__COLOR__\">__VERSION__</td>"
 )
 
 func formatData(controllers *map[string]*Controller /*, services map[string]interface{}*/) {
@@ -41,7 +41,9 @@ func formatData(controllers *map[string]*Controller /*, services map[string]inte
 		rowInner += strings.Replace(SERVICE, "__SERVICE__", service, 1)
 		for _, controller := range copy {
 			if config, exists := controller.deployments[service]; exists {
-				rowInner += strings.Replace(VERSION, "__VERSION__", config.Image, 1)
+				str := strings.Replace(VERSION, "__VERSION__", config.Image, 1)
+				str = strings.Replace(str, "__COLOR__", hash(config.Image), 1)
+				rowInner += str
 			} else {
 				rowInner += strings.Replace(VERSION, "__VERSION__", "No image found", 1)
 			}
@@ -64,4 +66,22 @@ func formatData(controllers *map[string]*Controller /*, services map[string]inte
 	fileContent = strings.Replace(fileContent, "__CLUSTER_NAMES__", clusters, 1)
 	fileContent = strings.Replace(fileContent, "__VERSIONS__", rows, 1)
 	os.WriteFile("./out/allCoallated.html", []byte(fileContent), 0644)
+}
+
+func hash(convert string) string {
+	var total int = 0
+	for i := 0; i < len(convert); i++ {
+		total += int(byte(convert[i])) * (i + i)
+	}
+
+	if total%2 == 0 {
+		total += 128
+	} else {
+		total -= 128
+		if total < 0 {
+			total *= -1
+		}
+	}
+	hex := fmt.Sprintf("%x", total)
+	return hex
 }

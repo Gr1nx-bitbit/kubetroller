@@ -90,13 +90,13 @@ func main() {
 		config, err := clientcmd.BuildConfigFromFlags("", clusterConfig.configPath)
 		if err != nil {
 			fmt.Printf("Something went wrong with cluster config #%d! Error: %s\n", index, err.Error())
-			os.Exit(1)
+			os.Exit(2)
 		}
 
 		kclient, err := kubernetes.NewForConfig(config)
 		if err != nil {
 			fmt.Println("Trouble building client! Error: ", err.Error())
-			os.Exit(2)
+			os.Exit(3)
 		}
 
 		controllers[clusterConfig.clusterName] = NewController(ctx, kclient, clusterConfig)
@@ -131,9 +131,17 @@ func main() {
 
 func getClustersFromFlag(clusterString string) []ClusterConfig {
 	var clusterConfigs []ClusterConfig
+	var clusterNames = make(map[string]interface{})
 
 	for _, clusterPair := range strings.Split(clusterString, ",") {
 		pair := strings.Split(clusterPair, ":")
+		if _, exists := clusterNames[pair[0]]; exists {
+			fmt.Println("Cluster names must be unique. Please respecify the names of the clusters to avoid this conflict (names are case sensitive).")
+			os.Exit(1)
+		} else {
+			clusterNames[pair[0]] = nil
+		}
+
 		clusterConfigs = append(clusterConfigs, ClusterConfig{
 			clusterName: pair[0],
 			configPath:  pair[1],
