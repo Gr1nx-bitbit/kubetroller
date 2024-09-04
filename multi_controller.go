@@ -117,7 +117,7 @@ func main() {
 
 	// I want to run this in a seperate goroutine on a specific time interval instead of once at the beginning
 	time.Sleep(time.Second)
-	formatData(&controllers, serviceNames)
+	formatData(&controllers /*, serviceNames*/)
 	// wg.Add(1)
 	// go func() {
 	// 	defer wg.Done()

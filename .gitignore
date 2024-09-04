@@ -5,6 +5,7 @@ templates/
 styles/
 out/
 makefile.txt
+concurrency_exercise.go.txt
 requirements.ipynb
 send.go
 multi

@@ -14,22 +14,28 @@ const (
 	VERSION = "<td>__VERSION__</td>"
 )
 
-func formatData(controllers *map[string]*Controller, services map[string]interface{}) {
+func formatData(controllers *map[string]*Controller /*, services map[string]interface{}*/) {
 	/*
 		Ok, so just as our first go, we want to take the names of the clusters
 		and make a column for each of them within the html file.
 	*/
 
-	copy := *controllers // So I don't copy the controllers for each for loop
+	serviceNames := make(map[string]interface{})
+	copy := *controllers // So I don't copy the controllers for each for loop (that's also why I pass it in as a pointer)
 	clusters := ""
-	for cluster := range copy {
+	for cluster, controller := range copy {
 		clusters += strings.Replace(CLUSTER, "__CLUSTER__", cluster, 1)
+		for key := range controller.deployments {
+			if _, exists := serviceNames[key]; !exists {
+				serviceNames[key] = nil
+			}
+		}
 	}
 
 	// ------------------------
 
 	rows := ""
-	for service := range services {
+	for service := range serviceNames {
 		rowInner := ""
 
 		rowInner += strings.Replace(SERVICE, "__SERVICE__", service, 1)
