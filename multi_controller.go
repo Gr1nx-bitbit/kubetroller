@@ -221,7 +221,7 @@ func NewController(
 			if objRef, err := cache.ObjectToName(obj); err != nil {
 				utilruntime.HandleError(err)
 			} else {
-				serviceNames.decrement(objRef.Name)
+				serviceNames.decrement(ctx, objRef.Name)
 				delete(controller.deployments, objRef.Name)
 				logger.Info("delete callback invoked!", "key", objRef)
 			}
