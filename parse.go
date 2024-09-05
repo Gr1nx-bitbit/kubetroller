@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -15,32 +17,28 @@ const (
 	VERSION = "<td style=\"background-color:#__COLOR__\">__VERSION__</td>"
 )
 
-func formatData(ctx context.Context, controllers *map[string]*Controller /*, services map[string]interface{}*/) bool {
+func formatData(ctx context.Context, controllers *map[string]*Controller, services *ServiceNames) bool {
 	/*
 		Ok, so just as our first go, we want to take the names of the clusters
 		and make a column for each of them within the html file.
 	*/
 
 	if proceed := ctx.Err(); proceed != nil {
+		logger := klog.FromContext(ctx)
+		logger.Info("Shutting down data formatter")
 		return false
 	}
 
-	serviceNames := make(map[string]interface{})
 	copy := *controllers // So I don't copy the controllers for each for loop (that's also why I pass it in as a pointer)
 	clusters := ""
-	for cluster, controller := range copy {
+	for cluster := range copy {
 		clusters += strings.Replace(CLUSTER, "__CLUSTER__", cluster, 1)
-		for key := range controller.deployments {
-			if _, exists := serviceNames[key]; !exists {
-				serviceNames[key] = nil
-			}
-		}
 	}
 
 	// ------------------------
 
 	rows := ""
-	for service := range serviceNames {
+	for service := range services.services {
 		rowInner := ""
 
 		rowInner += strings.Replace(SERVICE, "__SERVICE__", service, 1)

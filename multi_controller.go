@@ -75,7 +75,7 @@ const (
 
 // I just want to store keys and no values
 // getting rid of this for now so we don't have to worry about concurrent writes
-// var serviceNames = make(map[string]interface{})
+var serviceNames = ServiceNames{services: make(map[string]int)}
 
 func main() {
 	ctx := signals.SetupSignalHandler()
@@ -116,13 +116,11 @@ func main() {
 		}()
 	}
 
-	// I want to run this in a seperate goroutine on a specific time interval instead of once at the beginning
 	time.Sleep(time.Second)
-	// formatData(&controllers /*, serviceNames*/)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for formatData(ctx, &controllers /*, serviceNames*/) {
+		for formatData(ctx, &controllers, &serviceNames) {
 			time.Sleep(time.Second * 10)
 		}
 	}()
@@ -223,6 +221,7 @@ func NewController(
 			if objRef, err := cache.ObjectToName(obj); err != nil {
 				utilruntime.HandleError(err)
 			} else {
+				serviceNames.decrement(objRef.Name)
 				delete(controller.deployments, objRef.Name)
 				logger.Info("delete callback invoked!", "key", objRef)
 			}
@@ -340,12 +339,8 @@ func (c *Controller) checkToQueue(obj interface{}) {
 	if objref, err := cache.ObjectToName(obj); err != nil {
 		utilruntime.HandleError(err)
 	} else {
-		// _, exists := serviceNames[objref.Name]
 
-		// if !exists {
-		// 	serviceNames[objref.Name] = nil
-		// }
-
+		serviceNames.checkAndAdd(objref.Name)
 		value, exists := c.deployments[objref.Name]
 
 		if !exists {
