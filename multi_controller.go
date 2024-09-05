@@ -339,11 +339,11 @@ func (c *Controller) checkToQueue(obj interface{}) {
 	if objref, err := cache.ObjectToName(obj); err != nil {
 		utilruntime.HandleError(err)
 	} else {
-		_, exists := serviceNames[objref.Name]
+		// _, exists := serviceNames[objref.Name]
 
-		if !exists {
-			serviceNames[objref.Name] = nil
-		}
+		// if !exists {
+		// 	serviceNames[objref.Name] = nil
+		// }
 
 		value, exists := c.deployments[objref.Name]
 

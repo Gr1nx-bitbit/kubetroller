@@ -11,7 +11,7 @@ const (
 	ROW     = "<tr>__ROW__</tr>"
 	CLUSTER = "<td>__CLUSTER__</td>"
 	SERVICE = "<td>__SERVICE__</td>"
-	VERSION = "<td style=\"background-color: #__COLOR__\">__VERSION__</td>"
+	VERSION = "<td style=\"background-color:#__COLOR__\">__VERSION__</td>"
 )
 
 func formatData(controllers *map[string]*Controller /*, services map[string]interface{}*/) {
@@ -83,5 +83,14 @@ func hash(convert string) string {
 		}
 	}
 	hex := fmt.Sprintf("%x", total)
+	if length := len(hex); length < 6 {
+		for length < 6 {
+			hex += "0"
+			length++
+		}
+	} else if length > 6 {
+		hex = hex[:5]
+	}
+
 	return hex
 }
