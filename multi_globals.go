@@ -24,7 +24,7 @@ func (svcNames *ServiceNames) decrement(svcName string) {
 	svcNames.mutx.Lock()
 	defer svcNames.mutx.Unlock()
 	value := svcNames.services[svcName]
-	if value-1 == 0 {
+	if value-1 <= 0 {
 		delete(svcNames.services, svcName)
 	} else {
 		svcNames.services[svcName]--
