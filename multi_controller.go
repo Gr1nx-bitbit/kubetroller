@@ -74,7 +74,8 @@ const (
 )
 
 // I just want to store keys and no values
-var serviceNames = make(map[string]interface{})
+// getting rid of this for now so we don't have to worry about concurrent writes
+// var serviceNames = make(map[string]interface{})
 
 func main() {
 	ctx := signals.SetupSignalHandler()
@@ -117,14 +118,14 @@ func main() {
 
 	// I want to run this in a seperate goroutine on a specific time interval instead of once at the beginning
 	time.Sleep(time.Second)
-	formatData(&controllers /*, serviceNames*/)
-	// wg.Add(1)
-	// go func() {
-	// 	defer wg.Done()
-	// 	for formatData(&controllers, serviceNames) {
-	// 		time.Sleep(time.Minute)
-	// 	}
-	// }()
+	// formatData(&controllers /*, serviceNames*/)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for formatData(ctx, &controllers /*, serviceNames*/) {
+			time.Sleep(time.Second * 10)
+		}
+	}()
 
 	wg.Wait()
 }

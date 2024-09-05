@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -14,11 +15,15 @@ const (
 	VERSION = "<td style=\"background-color:#__COLOR__\">__VERSION__</td>"
 )
 
-func formatData(controllers *map[string]*Controller /*, services map[string]interface{}*/) {
+func formatData(ctx context.Context, controllers *map[string]*Controller /*, services map[string]interface{}*/) bool {
 	/*
 		Ok, so just as our first go, we want to take the names of the clusters
 		and make a column for each of them within the html file.
 	*/
+
+	if proceed := ctx.Err(); proceed != nil {
+		return false
+	}
 
 	serviceNames := make(map[string]interface{})
 	copy := *controllers // So I don't copy the controllers for each for loop (that's also why I pass it in as a pointer)
@@ -66,6 +71,8 @@ func formatData(controllers *map[string]*Controller /*, services map[string]inte
 	fileContent = strings.Replace(fileContent, "__CLUSTER_NAMES__", clusters, 1)
 	fileContent = strings.Replace(fileContent, "__VERSIONS__", rows, 1)
 	os.WriteFile("./out/allCoallated.html", []byte(fileContent), 0644)
+
+	return true
 }
 
 func hash(convert string) string {
