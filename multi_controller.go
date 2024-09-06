@@ -340,17 +340,20 @@ func (c *Controller) checkToQueue(obj interface{}) {
 		utilruntime.HandleError(err)
 	} else {
 
-		serviceNames.checkAndAdd(objref.Name)
 		value, exists := c.deployments[objref.Name]
 
 		if !exists {
 			c.deployments[objref.Name] = DeployConfigs{Cluster: c.clusterName, Namespace: objref.Namespace, Image: "No image found"}
 			c.enqueueDeployment(objref)
+
+			serviceNames.checkAndAdd(objref.Name)
 		} else {
 			if value == c.deployments[objref.Name] {
 				return
 			} else {
 				c.enqueueDeployment(objref)
+
+				serviceNames.checkAndAdd(objref.Name)
 			}
 		}
 
