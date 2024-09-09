@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -16,6 +17,25 @@ const (
 	SERVICE = "<td>__SERVICE__</td>"
 	VERSION = "<td style=\"background-color:#__COLOR__\">__VERSION__</td>"
 )
+
+/*
+	Ok, so I want to move the formatData over to an API instead of
+	having the function come up with the HTML each time. To do that,
+	we need to send the data of each cluster as JSON, and that JSON
+	includes...
+		- ClusterName
+		- ?Namespace
+		- ClusterServices / ServiceNames
+		- Images for those serviceNames
+		- Date of manifest
+		- Is this not just the deployConfig struct??
+*/
+
+type ClusterInfo struct {
+	ClusterName      string            `json:"clusterName"`
+	ServiceImagePair map[string]string `json:"serviceImagePair"`
+	Date             string            `json:"date"`
+}
 
 func formatData(ctx context.Context, controllers *map[string]*Controller, services *ServiceNames) bool {
 	/*
@@ -70,6 +90,8 @@ func formatData(ctx context.Context, controllers *map[string]*Controller, servic
 	fileContent = strings.Replace(fileContent, "__VERSIONS__", rows, 1)
 	os.WriteFile("./out/allCoallated.html", []byte(fileContent), 0644)
 
+	getAllClustersData(controllers)
+
 	return true
 }
 
@@ -98,4 +120,30 @@ func hash(convert string) string {
 	}
 
 	return hex
+}
+
+func getAllClustersData(controllers *map[string]*Controller) bool {
+	var clusters []ClusterInfo
+	timeToSend := time.Now().Format("2006-January-02")
+	for cluster, controller := range *controllers {
+		var pairs = make(map[string]string)
+		for serviceName, image := range controller.deployments {
+			pairs[serviceName] = image.Image
+		}
+
+		clusters = append(clusters, ClusterInfo{
+			ClusterName:      cluster,
+			ServiceImagePair: pairs,
+			Date:             timeToSend,
+		})
+	}
+
+	j, err := json.Marshal(clusters)
+	if err != nil {
+		fmt.Printf("function getAllClustersData(), file: parse.go, error while marshaling go type to json object, error: %s\n", err.Error())
+	} else {
+		os.WriteFile("./out/send.json", j, 0644)
+	}
+
+	return true
 }
