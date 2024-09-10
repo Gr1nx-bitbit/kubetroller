@@ -73,6 +73,10 @@ const (
 // masterURL = "https://127.0.0.1:6443" // getMasterURL()
 )
 
+var (
+	Controllers = make(map[string]*Controller)
+)
+
 // I just want to store keys and no values
 // getting rid of this for now so we don't have to worry about concurrent writes
 var serviceNames = ServiceNames{services: make(map[string]int)}
@@ -85,7 +89,7 @@ func main() {
 
 	// so now that we can get all the kubeconfig files, we have to build each client seperately...
 	// idk if trying to build the same client twice will break the program... guess we'll see!
-	controllers := make(map[string]*Controller)
+	// controllers := make(map[string]*Controller)
 	clusterConfigs := getClustersFromFlag(clusterString)
 	for index, clusterConfig := range clusterConfigs {
 		config, err := clientcmd.BuildConfigFromFlags("", clusterConfig.configPath)
@@ -100,11 +104,11 @@ func main() {
 			os.Exit(3)
 		}
 
-		controllers[clusterConfig.clusterName] = NewController(ctx, kclient, clusterConfig)
+		Controllers[clusterConfig.clusterName] = NewController(ctx, kclient, clusterConfig)
 	}
 
 	var wg sync.WaitGroup
-	for controllerName, controller := range controllers {
+	for controllerName, controller := range Controllers {
 		msg := fmt.Sprintf("Invoking controller %s", controllerName)
 		klog.InfoS(msg)
 		wg.Add(1)
@@ -116,11 +120,17 @@ func main() {
 		}()
 	}
 
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		serve()
+	}()
+
 	time.Sleep(time.Second)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for formatData(ctx, &controllers, &serviceNames) {
+		for formatData(ctx, &Controllers, &serviceNames) {
 			time.Sleep(time.Second * 10)
 		}
 	}()

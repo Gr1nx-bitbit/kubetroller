@@ -90,7 +90,7 @@ func formatData(ctx context.Context, controllers *map[string]*Controller, servic
 	fileContent = strings.Replace(fileContent, "__VERSIONS__", rows, 1)
 	os.WriteFile("./out/allCoallated.html", []byte(fileContent), 0644)
 
-	getAllClustersData(controllers)
+	getAllClustersData()
 
 	return true
 }
@@ -122,10 +122,10 @@ func hash(convert string) string {
 	return hex
 }
 
-func getAllClustersData(controllers *map[string]*Controller) bool {
+func getAllClustersData() ([]byte, error) {
 	var clusters []ClusterInfo
 	timeToSend := time.Now().Format("2006-January-02")
-	for cluster, controller := range *controllers {
+	for cluster, controller := range Controllers {
 		var pairs = make(map[string]string)
 		for serviceName, image := range controller.deployments {
 			pairs[serviceName] = image.Image
@@ -141,9 +141,8 @@ func getAllClustersData(controllers *map[string]*Controller) bool {
 	j, err := json.Marshal(clusters)
 	if err != nil {
 		fmt.Printf("function getAllClustersData(), file: parse.go, error while marshaling go type to json object, error: %s\n", err.Error())
+		return j, err
 	} else {
-		os.WriteFile("./out/send.json", j, 0644)
+		return j, nil
 	}
-
-	return true
 }
