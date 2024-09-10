@@ -126,14 +126,14 @@ func main() {
 		serve()
 	}()
 
-	time.Sleep(time.Second)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for formatData(ctx, &Controllers, &serviceNames) {
-			time.Sleep(time.Second * 10)
-		}
-	}()
+	// time.Sleep(time.Second)
+	// wg.Add(1)
+	// go func() {
+	// 	defer wg.Done()
+	// 	for formatData(ctx, &Controllers, &serviceNames) {
+	// 		time.Sleep(time.Second * 10)
+	// 	}
+	// }()
 
 	wg.Wait()
 }
